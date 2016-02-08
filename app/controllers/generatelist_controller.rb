@@ -1,0 +1,3 @@
+
+class GenerateListController
+end
