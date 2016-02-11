@@ -12,6 +12,10 @@ class ApplicationController < ActionController::Base
   end
 
   def generate_playlist
-  	render text: "You have no playlists!"
+    Playlist.create(location: "Dublin", genre: "Rock")
+    Song.create(name: "Luke Agnew's Song", artist_name: "Luke Agnew", url: "google.com", service: "Spotify")
+    PlaylistsSong.create(playlist_id: 1, song_id: 1)
+
+    render json: Playlist.find_by(location: "Dublin", genre: "Rock").songs
   end
 end
