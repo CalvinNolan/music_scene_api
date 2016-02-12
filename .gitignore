@@ -15,3 +15,8 @@
 /log/*
 !/log/.keep
 /tmp
+
+# Ignore hello world file
+/app/controllers/welcome_controller.rb
+/app/assets/stylesheets/welcome.scss
+/app/assets/stylesheets/application.scss
