@@ -4,20 +4,21 @@ class ApplicationController < ActionController::Base
   protect_from_forgery with: :exception
   
   def index
-    #test
-  	if(Playlist.find_by(location: "Dublin", genre: "Rock").blank?)
-  		generate_playlist
-  	else
-  		render json: Playlist.find_by(location: "Dublin", genre: "Rock").songs
-  	end
+    if(((params[:location] != "0") && (params[:location].to_i ==0))  && ((params[:genre] != "0") && (params[:genre].to_i ==0)))
+      location = params[:location]
+      genre = params[:genre]
+      if(Playlist.find_by(location: location, genre: genre).blank?)
+         generate_playlist(location, genre)
+      else
+        render json: {:playlist => Playlist.find_by(location, genre), :songs => Playlist.find_by(location, genre).songs}
+      end
+    else 
+      render json: "Location and genre must be a string value"
+    end
   end
 
-  def generate_playlist
-    Playlist.create(location: "Dublin", genre: "Rock")
-    Song.create(name: "Luke Agnew's Song", artist_name: "Luke Agnew", url: "google.com", service: "Spotify")
-    PlaylistsSong.create(playlist_id: 1, song_id: 1)
-
-    render json: Playlist.find_by(location: "Dublin", genre: "Rock").songs
+  def generate_playlist (location, genre)
+    render text: location +" "+ genre
   end
 
   def get_playlist_by_id
@@ -27,17 +28,12 @@ class ApplicationController < ActionController::Base
 
     # Code to check that the last segment of the url passed
     # is of type int and to handle the case when it is not.
-
-
-
     if (id_value == "0" || id_value.to_i != 0)
-
       if (Playlist.find_by(id: id_value).blank?)
         render json: "Playlist not found, please enter another id."
       else
         render json: {:playlist => Playlist.find_by(id: id_value), :songs => Playlist.find_by(id: id_value).songs}
       end
-
     else
       render json: "Invalid request, id must be an Integer. Received " + id_value
     end
