@@ -20,3 +20,5 @@
 /app/controllers/welcome_controller.rb
 /app/assets/stylesheets/welcome.scss
 /app/assets/stylesheets/application.scss
+
+/config/secrets.yml

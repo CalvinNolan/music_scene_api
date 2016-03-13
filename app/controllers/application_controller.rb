@@ -8,20 +8,19 @@ class ApplicationController < ActionController::Base
 
 
   def index
-    if(((params[:location] != "0") && (params[:location].to_i ==0))  && ((params[:genre] != "0") && (params[:genre].to_i ==0)))
+    if !(params.has_key?(:location) && params.has_key?(:genre))
+      render json: "You must pass location and genre as url parameters"
+    elsif ((params[:location] != "0") && (params[:location].to_i == 0)) && ((params[:genre] != "0") && (params[:genre].to_i == 0))
       location = params[:location]
       genre = params[:genre]
       if(Playlist.find_by(location: location, genre: genre).blank?)
          generatePlaylist(location, genre)
       else
-        render json: {:playlist => Playlist.find_by(location, genre), :songs => Playlist.find_by(location, genre).songs}
+        render json: {:playlist => Playlist.find_by(location: location, genre: genre), :songs => Playlist.find_by(location: location, genre: genre).songs}
       end
     else 
       render json: "Location and genre must be a string value"
     end
-  end
-
-  def generate_playlist (location, genre)
   end
 
   def get_playlist_by_id
@@ -44,86 +43,66 @@ class ApplicationController < ActionController::Base
 
 
   def generatePlaylist(location,genre)
+    puts "Generating playlists for Location: " + location.to_s + " & Genre: " + genre.to_s
 
-    @location=location
-    @genre=genre
-
-
-    @responseMusicBrainz = HTTParty.get('http://musicbrainz.org/ws/2/artist/?query=area:'+@location+'&fmt=json')
+    # Get all the artists in a given location from MusicBrainz.
+    @responseMusicBrainz = HTTParty.get('http://musicbrainz.org/ws/2/artist/?query=area:' + location + '&fmt=json')
     @jsonMB = JSON.parse(@responseMusicBrainz.body)
+    
+    # Resend the request until there is a non-error response.
+    while @jsonMB['error']
+      @responseMusicBrainz = HTTParty.get('http://musicbrainz.org/ws/2/artist/?query=area:' + location + '&fmt=json')
+      @jsonMB = JSON.parse(@responseMusicBrainz.body)
+    end
 
-    @arrayOfArtist=Array.new
-    @arrayOfArtist=Array.new
-    @arrayOfSources=Array.new
-    @arrayOfSoundcloud=Array.new
-    @arrayOfAlltheSources=Array.new
-    @arrayOfUID=Array.new
-    @arrayOfTracks=Array.new
-    @user=Array.new
-    @track=Array.new
+    puts "1/3 List of artists in location attained."
 
+    @artistsInfo = Array.new
 
-
-
+    # Create an array of all the artist's SoundCloud info that were found through MusicBrainz.
     @jsonMB["artists"].each do |artist|
-      @arrayOfArtist.append(artist["id"])
-    end
+      @artistRelations = HTTParty.get('http://musicbrainz.org/ws/2/artist/' + artist["id"] + '?inc=url-rels&fmt=json')
+      @jsonRelations = JSON.parse(@artistRelations.body)
 
-    for id in @arrayOfArtist
-      @responseOpenaura = HTTParty.get('http://api.openaura.com/v1/source/artists/'+id+'?id_type=musicbrainz%3Agid&api_key=')
-      @arrayOfAlltheSources.append(JSON.parse(@responseOpenaura.body))
-    end
+      # Resend the request until there is a non-error response.
+      while @jsonRelations['error']
+        sleep 1
+        @artistRelations = HTTParty.get('http://musicbrainz.org/ws/2/artist/' + artist["id"] + '?inc=url-rels&fmt=json')
+        @jsonRelations = JSON.parse(@artistRelations.body)
+      end
 
-    for sources in @arrayOfAlltheSources
-      sources["sources"].each do |source|
-         @arrayOfSources.append(source)
+      @jsonRelations['relations'].each do |relation|
+        if relation['type'] == 'soundcloud'
+          @soundcloudArtistInfo = HTTParty.get('http://api.soundcloud.com/resolve?url=' + relation['url']['resource'] + '&client_id=' + Rails.application.secrets.soundcloud_api_key)
+          if !@soundcloudArtistInfo.body.blank?
+            @artistsInfo.append(JSON.parse(@soundcloudArtistInfo.body))
+          end
+          break
+        end
       end
     end
 
-    for sources in @arrayOfSources
-      #for source in sources
-        if sources['oa_provider_id'] == 8
-          @arrayOfUID.append(sources["uid"])
-        end
-      #end
-    end
+    puts "2/3 Artists SoundCloud information attained."
 
-    # create a client object with your app credentials
-    #client = Soundcloud.new(:client_id => '')
-    #@artistSound=Array.new
+    newP=Playlist.create(location: location, genre: genre)
+    for artist in @artistsInfo
+      if !artist["errors"]
+        puts "ARTIST ID: " + artist["id"].to_s + " => " + "USERNAME: " + artist["username"].to_s
+        @responseSound=HTTParty.get('http://api.soundcloud.com/users/' + artist["id"].to_s + '/tracks?client_id=' + Rails.application.secrets.soundcloud_api_key)
+        @tracks = JSON.parse(@responseSound.body)
 
-    #@count=0;
-    newP=Playlist.create(location: @location, genre: @genre)
-    for uid in @arrayOfUID
-      @responseSound=HTTParty.get('http://api.soundcloud.com/users/'+uid+'/tracks?client_id=&genres='+@genre)
-      @tracks = JSON.parse(@responseSound.body)
-
-=begin
-      for track in @tracks
-        if(@artist==track["user_id"])
-          if(@count<1)
-            @count++
-            @arrayOfTracks.append(track)
+        for track in @tracks
+          puts track["title"].to_s + " => " + track["genre"].to_s
+          if track["genre"].downcase.include? genre.downcase
+            new_song = Song.create(name:track["title"],artist_name:track["user"]["username"],url:track["uri"],service:"Soundcloud")
+            PlaylistsSong.create(playlist_id: newP.id, song_id: new_song.id)
           end
-        else
-          @count=1
         end
-
-
-        @artist=track["user_id"]
-=end
-        @track=@tracks[0]
-        @user=@track["user"]
-        @username=@user["username"]
-        @arrayOfTracks.append(@track)
-        new_song = Song.create(name:@track["title"],artist_name:@username,url:@track["permalink_url"],service:"Soundcloud")
-        PlaylistsSong.create(playlist_id: newP.id, song_id: new_song.id)
-      #end
+      end
     end
 
+    puts "3/3 Playlist created and populated"
 
-
-    #render json: @arrayOfTracks
-    #Playlist.find_by(location: @location, genre: @genre)
+    render json: {:playlist => Playlist.find_by(location: location, genre: genre), :songs => Playlist.find_by(location: location, genre: genre).songs}
   end
 end
