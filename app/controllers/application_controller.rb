@@ -87,12 +87,10 @@ class ApplicationController < ActionController::Base
     newP=Playlist.create(location: location, genre: genre)
     for artist in @artistsInfo
       if !artist["errors"]
-        puts "ARTIST ID: " + artist["id"].to_s + " => " + "USERNAME: " + artist["username"].to_s
         @responseSound=HTTParty.get('http://api.soundcloud.com/users/' + artist["id"].to_s + '/tracks?client_id=' + Rails.application.secrets.soundcloud_api_key)
         @tracks = JSON.parse(@responseSound.body)
 
         for track in @tracks
-          puts track["title"].to_s + " => " + track["genre"].to_s
           if track["genre"].downcase.include? genre.downcase
             new_song = Song.create(name:track["title"],artist_name:track["user"]["username"],url:track["uri"],service:"Soundcloud")
             PlaylistsSong.create(playlist_id: newP.id, song_id: new_song.id)
