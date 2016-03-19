@@ -2,10 +2,10 @@ class ApplicationController < ActionController::Base
   # Prevent CSRF attacks by raising an exception.
   # For APIs, you may want to use :null_session instead.
   protect_from_forgery with: :exception
+  
   require 'open-uri'
   require 'httparty'
   require 'soundcloud'
-
 
   def index
     if !(params.has_key?(:location) && params.has_key?(:genre))
@@ -40,7 +40,6 @@ class ApplicationController < ActionController::Base
       render json: "Invalid request, id must be an Integer. Received " + id_value
     end
   end
-
 
   def generatePlaylist(location,genre)
     puts "Generating playlists for Location: " + location.to_s + " & Genre: " + genre.to_s
@@ -91,6 +90,7 @@ class ApplicationController < ActionController::Base
         @tracks = JSON.parse(@responseSound.body)
 
         for track in @tracks
+          puts track["title"].to_s + " => " + track["genre"].to_s
           if track["genre"].downcase.include? genre.downcase
             new_song = Song.create(name:track["title"],artist_name:track["user"]["username"],url:track["uri"],service:"Soundcloud")
             PlaylistsSong.create(playlist_id: newP.id, song_id: new_song.id)
