@@ -9,7 +9,7 @@ class ApplicationController < ActionController::Base
 
   def index
     if !(params.has_key?(:location) && params.has_key?(:genre))
-      render json: "You must pass location and genre as url parameters"
+      render json: {:error => "You must pass location and genre as url parameters!"}
     elsif ((params[:location] != "0") && (params[:location].to_i == 0)) && ((params[:genre] != "0") && (params[:genre].to_i == 0))
       location = params[:location]
       genre = params[:genre]
@@ -19,7 +19,7 @@ class ApplicationController < ActionController::Base
         render json: {:playlist => Playlist.find_by(location: location, genre: genre), :songs => Playlist.find_by(location: location, genre: genre).songs}
       end
     else 
-      render json: "Location and genre must be a string value"
+      render json: {:error => "Location and genre must be a string value!"}
     end
   end
 
@@ -32,12 +32,12 @@ class ApplicationController < ActionController::Base
     # is of type int and to handle the case when it is not.
     if (id_value == "0" || id_value.to_i != 0)
       if (Playlist.find_by(id: id_value).blank?)
-        render json: "Playlist not found, please enter another id."
+        render json: {:error => "Playlist not found, please enter another id."}
       else
         render json: {:playlist => Playlist.find_by(id: id_value), :songs => Playlist.find_by(id: id_value).songs}
       end
     else
-      render json: "Invalid request, id must be an Integer. Received " + id_value
+      render json: {:error => "Invalid request, id must be an Integer. Received " + id_value}
     end
   end
 

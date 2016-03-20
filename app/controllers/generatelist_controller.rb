@@ -1,3 +1,0 @@
-
-class GenerateListController
-end
