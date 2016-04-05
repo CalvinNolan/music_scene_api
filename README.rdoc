@@ -1,5 +1,0 @@
-== Music Scene Playlist Generation API
-
-This is the repository for the TCD CS3013/CS2013 Group 34 project.
-
-It will be an API that, given a location and optionally a genre, will generate a playlist of songs from Spotify and Soundcloud of new music and upcoming artists from that location with the aim of giving a taste of the music scene in that location.
